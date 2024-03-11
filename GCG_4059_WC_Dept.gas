@@ -1,0 +1,94 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Variable.UDT.uWorkCenter.Define("sDept",String,Dept)
+Variable.UDT.uWorkCenter.Define("sWC",String)
+Variable.UDT.uWorkCenter.Define("sWG",String)
+Variable.uGlobal.uWorkCenter.Declare("uWorkCenter")
+Variable.UDT.uReport.Define("sDept",String,ROG)
+Variable.UDT.uReport.Define("sWGroup",String,RST)
+Variable.UDT.uReport.Define("sWCenter",String,SAR)
+Variable.UDT.uReport.Define("dDate",Date,BDate)
+Variable.UDT.uReport.Define("iBIRunID",Long)
+Variable.UDT.uReport.Define("sDetail",Float,RBT)
+Variable.uGlobal.uReport.Declare("uReport")
+Variable.Global.iBIRunID.Declare(Long,0)
+Variable.Global.iBILogID.Declare(Long,0)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sParam.Declare(String)
+V.Local.sVal.Declare(String)
+V.Local.sSql.Declare(String)
+V.Local.iCount.Declare(Long)
+V.Local.iCount2.Declare(Long)
+V.Local.dDate.Declare(Date)
+
+V.Local.dDate.Set(V.Ambient.Date)
+
+V.uGlobal.uWorkCenter.Redim(-1,-1)
+V.uGlobal.uReport.Redim(-1,-1)
+
+F.ODBC.Connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+F.ODBC.Connection!conx.OpenLocalRecordsetRW("rst","Delete GCG_4059_WCDEPT")
+F.ODBC.conx!rst.Close
+
+F.Global.BI.GetRunID(V.Global.iBIRunID)
+F.Global.BI.StartLogging(V.Global.iBIRunID,-1,-1,"",V.Global.iBILogID)
+
+'F.ODBC.Connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+V.Local.sSql.Set("Select Distinct Dept from APSV3_WCMaster Where Dept <> 'OVHD'")
+
+'V.Local.sSql.Set("Select Distinct APSV3_WCMaster.WC, APSV3_WCMaster.Dept, APSV3_WGLines.WG  from APSV3_WCMaster Left Join APSV3_WGLines on  APSV3_WCMaster.WC= APSV3_WGLines.WC Where APSV3_WCMaster.WC <> 'OVHD' Order by APSV3_WCMaster.Dept")
+F.ODBC.Connection!conx.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Variable.LoadUDTFromRecordset("conx","rst","v.uGlobal.uWorkCenter",False)
+F.ODBC.conx!rst.Close
+
+
+F.Intrinsic.Control.For(V.Local.iCount,0,V.uGlobal.uWorkCenter.UBound,1)
+
+F.Intrinsic.String.Concat("Select  RBT, SAR, ROG, RST, bDate from APSV3_UBDetail Where ROG = '",V.uGlobal.uWorkCenter(v.Local.iCount)!sDept.Trim,"'",V.Local.sSql)
+	F.ODBC.Connection!conx.OpenLocalRecordsetRO("rst",V.Local.sSql)
+	F.Intrinsic.Variable.LoadUDTFromRecordset("conx","rst","v.uGlobal.uReport",True)
+	F.ODBC.conx!rst.Close
+F.Intrinsic.Control.Next(V.Local.iCount)
+
+
+F.Intrinsic.Variable.UDTSetMemberValue(V.uGlobal.uReport!iBIRunID,V.Global.iBIRunID)
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uReport!iBIRunID,"BIRunID")
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uReport!dDate,"Date")
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uReport!sDept,"Department")
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uReport!sWGroup,"WorkGroup")
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uReport!sWCenter,"WorkCenter")
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uReport!sDetail,"Detail")
+
+V.Local.sSql.Set("Select * from GCG_4059_WCDEPT")
+F.ODBC.Connection!conx.OpenLocalRecordsetRW("rst",V.Local.sSql)
+F.Intrinsic.Variable.SaveUDTToRecordSet("conx","rst","v.uGlobal.uReport")
+
+F.Global.BI.StopLogging(V.Global.iBILogID)
+V.Local.sParam.Set("BIRUNID")
+V.Local.sVal.Set(V.Global.iBIRunID)
+'Print the Report
+F.Global.BI.RunReportPreProcessor(V.Global.iBIRunID,V.Global.iBILogID,V.Local.sParam,V.Local.sVal,"",-1,True,"",-1,"",-1,"","",V.Global.iBIRunID)
+
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4059_WC_Dept.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Main.End
+
+
